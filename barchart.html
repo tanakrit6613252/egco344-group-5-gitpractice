@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Electricity Bar Charts</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Inter', sans-serif;
+            color: #334155;
+            padding-top: 1rem;
+        }
+        /* Navbar Styling */
+        .navbar {
+            background: white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            border-radius: 12px;
+            margin: 0 1.5rem 2rem 1.5rem;
+        }
+        .nav-link {
+            font-weight: 500;
+            color: #64748b;
+            transition: color 0.2s;
+        }
+        .nav-link:hover, .nav-link.active {
+            color: #3b82f6;
+        }
+        
+        /* Card & Chart Styling */
+        .card {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            height: 100%;
+        }
+        .form-select {
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            cursor: pointer;
+        }
+        .chart-container {
+            position: relative;
+            height: 400px; /* Taller for bar charts */
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar navbar-expand-lg sticky-top">
+        <div class="container-fluid px-3">
+            <a class="navbar-brand fw-600 text-primary" href="index.html">
+                <i class="bi bi-lightning-charge-fill me-2"></i>EnergyAnalytics
+            </a>
+
+            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="navbarContent">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="barchart.html">
+                            <i class="bi bi-bar-chart-line me-1"></i> Bar Charts
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="piechart.html">
+                            <i class="bi bi-pie-chart me-1"></i> Pie Charts
+                        </a>
+                    </li>
+                </ul>
+
+                <div class="d-flex align-items-center mt-3 mt-lg-0">
+                    <label class="me-2 text-muted small fw-bold text-nowrap">SELECT PROVINCE:</label>
+                    <select id="provinceSelect" class="form-select form-select-sm w-auto" style="min-width: 200px;">
+                        <option value="" disabled selected>Loading...</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid px-4">
+        
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="fw-bold m-0 text-primary">1. Electricity Usages by Category & Year</h5>
+                        <small class="text-muted">Unit: kWh</small>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="usageBarChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="fw-bold m-0 text-primary">2. Electricity Users by Category & Year</h5>
+                        <small class="text-muted">Unit: No. of Users</small>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="usersBarChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <script>
+        let usageData = [];
+        let usersData = [];
+        let charts = {};
+
+        // Categories mapping (Key in JSON -> Display Name)
+        const categories = [
+            { key: 'residential', label: 'Residential' },
+            { key: 'small_business', label: 'Small Biz' },
+            { key: 'medium_business', label: 'Medium Biz' },
+            { key: 'large_business', label: 'Large Biz' },
+            { key: 'specialized_business', label: 'Specialized' },
+            { key: 'government_state_enterprise', label: 'Gov/State' },
+            { key: 'public_electricity', label: 'Public' },
+            { key: 'water_pumping', label: 'Water Pump' },
+            { key: 'temporary_electricity', label: 'Temporary' },
+            { key: 'ev_charging', label: 'EV Charge' }
+        ];
+
+        async function loadData() {
+            try {
+                const [usageRes, usersRes] = await Promise.all([
+                    fetch('electricity_usages_en.json'),
+                    fetch('electricity_users_en.json')
+                ]);
+                
+                const rawUsage = await usageRes.json();
+                // Handle structure difference: usages might be inside "Sheet1"
+                usageData = rawUsage.Sheet1 ? rawUsage.Sheet1 : rawUsage;
+                usersData = await usersRes.json();
+
+                initProvinceSelect();
+                updateCharts(); // Initial render
+            } catch (error) {
+                console.error("Error loading JSON data:", error);
+                alert("Failed to load JSON data. Ensure files are in the same directory.");
+            }
+        }
+
+        function initProvinceSelect() {
+            // Extract unique province names and codes
+            const provinces = [...new Set(usageData.map(item => JSON.stringify({code: item.province_code, name: item.province_name})))];
+            const sortedProvinces = provinces.map(p => JSON.parse(p)).sort((a, b) => a.name.localeCompare(b.name));
+
+            const select = document.getElementById('provinceSelect');
+            select.innerHTML = ''; // Clear loading
+            
+            sortedProvinces.forEach(p => {
+                const option = document.createElement('option');
+                option.value = p.code;
+                option.text = p.name;
+                select.appendChild(option);
+            });
+
+            // Default to Bangkok (code 10) or first one
+            if(sortedProvinces.some(p => p.code == 10)) {
+                select.value = 10;
+            } else {
+                select.value = sortedProvinces[0].code;
+            }
+
+            select.addEventListener('change', updateCharts);
+        }
+
+        function updateCharts() {
+            const provinceCode = document.getElementById('provinceSelect').value;
+            
+            // Filter data for the selected province (across all years)
+            const filteredUsage = usageData.filter(d => d.province_code == provinceCode);
+            const filteredUsers = usersData.filter(d => d.province_code == provinceCode);
+
+            // Available years in data
+            const years = [2564, 2565, 2566];
+            const colors = ['#cbd5e1', '#3b82f6', '#1e40af']; // Grey, Blue, Dark Blue
+
+            // Prepare Datasets
+            // We want Grouped Bar Chart: X-axis = Categories, Series = Years
+            
+            // 1. Prepare Usage Chart Data
+            const usageDatasets = years.map((year, index) => {
+                const yearData = filteredUsage.find(d => d.year == year) || {};
+                return {
+                    label: `Year ${year}`,
+                    data: categories.map(cat => yearData[`${cat.key}_kwh`] || 0),
+                    backgroundColor: colors[index],
+                    borderRadius: 4
+                };
+            });
+
+            // 2. Prepare Users Chart Data
+            const usersDatasets = years.map((year, index) => {
+                const yearData = filteredUsers.find(d => d.year == year) || {};
+                return {
+                    label: `Year ${year}`,
+                    data: categories.map(cat => yearData[`${cat.key}_count`] || 0),
+                    backgroundColor: colors[index],
+                    borderRadius: 4
+                };
+            });
+
+            const labels = categories.map(c => c.label);
+
+            renderChart('usageBarChart', labels, usageDatasets);
+            renderChart('usersBarChart', labels, usersDatasets);
+        }
+
+        function renderChart(canvasId, labels, datasets) {
+            if (charts[canvasId]) charts[canvasId].destroy();
+
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            charts[canvasId] = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top' },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) label += ': ';
+                                    if (context.parsed.y !== null) {
+                                        label += new Intl.NumberFormat('en-US').format(context.parsed.y);
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: '#f1f5f9' },
+                            ticks: {
+                                callback: function(value) {
+                                    // Format large numbers (e.g., 1M, 1k)
+                                    if (value >= 1000000) return (value/1000000).toFixed(1) + 'M';
+                                    if (value >= 1000) return (value/1000).toFixed(0) + 'k';
+                                    return value;
+                                }
+                            }
+                        },
+                        x: {
+                            grid: { display: false }
+                        }
+                    },
+                    interaction: {
+                        mode: 'nearest',
+                        axis: 'x',
+                        intersect: false
+                    }
+                }
+            });
+        }
+
+        window.onload = loadData;
+    </script>
+</body>
+</html>
