@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Electricity Bar Charts</title>
+    <title>Electricity Bar Charts (Pink Theme)</title>
     
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
@@ -11,7 +11,7 @@
     
     <style>
         body {
-            background-color: #f8f9fa;
+            background-color: #fff1f2; /* พื้นหลังสีชมพูจางๆ */
             font-family: 'Inter', sans-serif;
             color: #334155;
             padding-top: 1rem;
@@ -29,7 +29,12 @@
             transition: color 0.2s;
         }
         .nav-link:hover, .nav-link.active {
-            color: #3b82f6;
+            color: #ec4899; /* Pink hover */
+        }
+        
+        /* Custom Text Colors */
+        .text-pink {
+            color: #db2777;
         }
         
         /* Card & Chart Styling */
@@ -44,9 +49,13 @@
             border: 1px solid #e2e8f0;
             cursor: pointer;
         }
+        .form-select:focus {
+            border-color: #fbcfe8;
+            box-shadow: 0 0 0 0.25rem rgba(236, 72, 153, 0.25);
+        }
         .chart-container {
             position: relative;
-            height: 400px; /* Taller for bar charts */
+            height: 400px;
             width: 100%;
         }
     </style>
@@ -55,7 +64,7 @@
 
     <nav class="navbar navbar-expand-lg sticky-top">
         <div class="container-fluid px-3">
-            <a class="navbar-brand fw-600 text-primary" href="index.html">
+            <a class="navbar-brand fw-600 text-pink" href="index.html">
                 <i class="bi bi-lightning-charge-fill me-2"></i>EnergyAnalytics
             </a>
 
@@ -66,7 +75,7 @@
             <div class="collapse navbar-collapse" id="navbarContent">
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                     <li class="nav-item">
-                        <a class="nav-link active" href="barchart.html">
+                        <a class="nav-link active text-pink" href="barchart.html">
                             <i class="bi bi-bar-chart-line me-1"></i> Bar Charts
                         </a>
                     </li>
@@ -93,7 +102,7 @@
             <div class="col-12">
                 <div class="card p-4">
                     <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h5 class="fw-bold m-0 text-primary">1. Electricity Usages by Category & Year</h5>
+                        <h5 class="fw-bold m-0 text-pink">1. Electricity Usages by Category & Year</h5>
                         <small class="text-muted">Unit: kWh</small>
                     </div>
                     <div class="chart-container">
@@ -107,7 +116,7 @@
             <div class="col-12">
                 <div class="card p-4">
                     <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h5 class="fw-bold m-0 text-primary">2. Electricity Users by Category & Year</h5>
+                        <h5 class="fw-bold m-0 text-pink">2. Electricity Users by Category & Year</h5>
                         <small class="text-muted">Unit: No. of Users</small>
                     </div>
                     <div class="chart-container">
@@ -127,7 +136,7 @@
         let usersData = [];
         let charts = {};
 
-        // Categories mapping (Key in JSON -> Display Name)
+        // Categories mapping
         const categories = [
             { key: 'residential', label: 'Residential' },
             { key: 'small_business', label: 'Small Biz' },
@@ -149,25 +158,23 @@
                 ]);
                 
                 const rawUsage = await usageRes.json();
-                // Handle structure difference: usages might be inside "Sheet1"
                 usageData = rawUsage.Sheet1 ? rawUsage.Sheet1 : rawUsage;
                 usersData = await usersRes.json();
 
                 initProvinceSelect();
-                updateCharts(); // Initial render
+                updateCharts(); 
             } catch (error) {
                 console.error("Error loading JSON data:", error);
-                alert("Failed to load JSON data. Ensure files are in the same directory.");
+                alert("Failed to load JSON data.");
             }
         }
 
         function initProvinceSelect() {
-            // Extract unique province names and codes
             const provinces = [...new Set(usageData.map(item => JSON.stringify({code: item.province_code, name: item.province_name})))];
             const sortedProvinces = provinces.map(p => JSON.parse(p)).sort((a, b) => a.name.localeCompare(b.name));
 
             const select = document.getElementById('provinceSelect');
-            select.innerHTML = ''; // Clear loading
+            select.innerHTML = '';
             
             sortedProvinces.forEach(p => {
                 const option = document.createElement('option');
@@ -176,7 +183,6 @@
                 select.appendChild(option);
             });
 
-            // Default to Bangkok (code 10) or first one
             if(sortedProvinces.some(p => p.code == 10)) {
                 select.value = 10;
             } else {
@@ -189,17 +195,18 @@
         function updateCharts() {
             const provinceCode = document.getElementById('provinceSelect').value;
             
-            // Filter data for the selected province (across all years)
             const filteredUsage = usageData.filter(d => d.province_code == provinceCode);
             const filteredUsers = usersData.filter(d => d.province_code == provinceCode);
 
-            // Available years in data
             const years = [2564, 2565, 2566];
-            const colors = ['#cbd5e1', '#3b82f6', '#1e40af']; // Grey, Blue, Dark Blue
-
-            // Prepare Datasets
-            // We want Grouped Bar Chart: X-axis = Categories, Series = Years
             
+            // --- เปลี่ยนชุดสีตรงนี้ (PINK PALETTE) ---
+            const colors = [
+                '#fbcfe8', // สีปี 2564 (ชมพูอ่อน - Pink 200)
+                '#ec4899', // สีปี 2565 (ชมพูสด - Pink 500)
+                '#be185d'  // สีปี 2566 (ชมพูเข้ม - Pink 700)
+            ];
+
             // 1. Prepare Usage Chart Data
             const usageDatasets = years.map((year, index) => {
                 const yearData = filteredUsage.find(d => d.year == year) || {};
@@ -264,7 +271,6 @@
                             grid: { color: '#f1f5f9' },
                             ticks: {
                                 callback: function(value) {
-                                    // Format large numbers (e.g., 1M, 1k)
                                     if (value >= 1000000) return (value/1000000).toFixed(1) + 'M';
                                     if (value >= 1000) return (value/1000).toFixed(0) + 'k';
                                     return value;
@@ -286,6 +292,5 @@
 
         window.onload = loadData;
     </script>
-    //End of script
 </body>
 </html>
