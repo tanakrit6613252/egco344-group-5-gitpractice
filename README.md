@@ -1,4 +1,4 @@
-Step 1: The Setup (Dev 1 & Dev 2) 
+Step 1: Hello World
 Everyone else can watch this part. 
 1. Dev 1 returns to the main branch locally and pulls the latest changes: 
 Bash 
